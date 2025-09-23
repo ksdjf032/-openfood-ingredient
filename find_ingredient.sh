@@ -30,26 +30,15 @@ done
 [ -z "${FILE:-}" ] && { echo "ERROR: -f /path/to/products.csv.gz is required" >&2; usage; exit 1; }
 [ -s "$FILE" ] || { echo "ERROR: $FILE not found or empty." >&2; exit 1; }
 
-# Figure out which column is "ingredients_text"
-ING_COL=$(zcat "$FILE" | head -1 | tr '\t' '\n' | grep -n "^ingredients_text$" | cut -d: -f1)
-
-if [ -z "$ING_COL" ]; then
-  echo "ERROR: ingredients_text column not found in header" >&2
-  exit 1
-fi
-
 # Stream the gzipped file through awk
-zcat "$FILE" | awk -F'\t' -v IGN="$INGREDIENT" -v ICOL="$ING_COL" '
-BEGIN {
-  count = 0
-  ign_lc = tolower(IGN)
-}
-NR == 1 { next } # skip header
+zcat "$FILE" | awk -F'\t' -v IGN="$INGREDIENT" '
+BEGIN { count=0 }
+NR==1 { next } # skip header
 {
   code = $1
   name = $2
-  ingredients = $ICOL
-  if (tolower(ingredients) ~ ign_lc) {
+  ingredients = $0
+  if (tolower(ingredients) ~ tolower(IGN)) {
     print name "\t" code
     count++
   }
@@ -57,4 +46,4 @@ NR == 1 { next } # skip header
 END {
   print "----"
   print "Found " count " product(s) containing: \"" IGN "\""
-}'
+}' || true
