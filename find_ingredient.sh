@@ -32,18 +32,22 @@ done
 
 # Stream the gzipped file through awk
 zcat "$FILE" | awk -F'\t' -v IGN="$INGREDIENT" '
-NR==1 { next } # skip header
+BEGIN {
+  count = 0
+  ign_lc = tolower(IGN)
+}
+NR == 1 { next } # skip header
 {
   code = $1
   name = $2
-  ingredients = $0
-  if (tolower(ingredients) ~ tolower(IGN)) {
+  # Adjust this if the "ingredients_text" column is at a different index!
+  ingredients = $3
+  if (tolower(ingredients) ~ ign_lc) {
     print name "\t" code
     count++
   }
 }
 END {
   print "----"
-  print "Found " count+0 " product(s) containing: \"" IGN "\""
+  print "Found " count " product(s) containing: \"" IGN "\""
 }'
-
