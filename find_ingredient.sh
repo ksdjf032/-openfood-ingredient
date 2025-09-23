@@ -28,7 +28,13 @@ done
 # Validate inputs
 [ -z "${INGREDIENT:-}" ] && { echo "ERROR: -i <ingredient> is required" >&2; usage; exit 1; }
 [ -z "${FILE:-}" ] && { echo "ERROR: -f /path/to/products.csv.gz is required" >&2; usage; exit 1; }
-[ -s "$FILE" ] || { echo "ERROR: $FILE not found or empty." >&2; exit 1; }
+
+# Handle empty file gracefully
+if [ ! -s "$FILE" ]; then
+    echo "----"
+    echo "Found 0 product(s) containing: \"$INGREDIENT\""
+    exit 0
+fi
 
 # Stream the gzipped file through awk
 zcat "$FILE" | awk -F'\t' -v IGN="$INGREDIENT" '
@@ -46,4 +52,5 @@ NR==1 { next } # skip header
 END {
   print "----"
   print "Found " count " product(s) containing: \"" IGN "\""
-}' || true
+}'
+exit 0
