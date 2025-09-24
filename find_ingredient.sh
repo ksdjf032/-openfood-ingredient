@@ -27,10 +27,8 @@ done
 
 # Validate inputs
 [ -z "${INGREDIENT:-}" ] && { echo "ERROR: -i <ingredient> is required" >&2; usage; exit 1; }
-[ -z "${DATA_DIR:-}" ] && { echo "ERROR: -d /path/to/folder is required" >&2; usage; exit 1; }
-
-CSV="$DATA_DIR/products.csv"
-[ -s "$CSV" ] || { echo "ERROR: $CSV not found or empty." >&2; exit 1; }
+[ -z "${FILE:-}" ] && { echo "ERROR: -f /path/to/products.csv.gz is required" >&2; usage; exit 1; }
+[ -s "$FILE" ] || { echo "ERROR: $FILE not found or empty." >&2; exit 1; }
 
 # Check csvkit tools
 for cmd in csvcut csvgrep csvformat; do
@@ -39,7 +37,8 @@ done
 
 # Pipeline:
 tmp_matches="$(mktemp)"
-csvcut -t -c ingredients_text,product_name,code "$CSV" \
+zcat "$FILE" \
+  | csvcut -t -c ingredients_text,product_name,code \
   | csvgrep -c ingredients_text -r "(?i)${INGREDIENT}" \
   | csvcut -c product_name,code \
   | csvformat -T \
