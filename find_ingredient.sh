@@ -27,30 +27,28 @@ done
 
 # Validate inputs
 [ -z "${INGREDIENT:-}" ] && { echo "ERROR: -i <ingredient> is required" >&2; usage; exit 1; }
-[ -z "${FILE:-}" ] && { echo "ERROR: -f /path/to/products.csv.gz is required" >&2; usage; exit 1; }
+[ -z "${DATA_DIR:-}" ] && { echo "ERROR: -d /path/to/folder is required" >&2; usage; exit 1; }
 
-# Handle empty file gracefully
-if [ ! -s "$FILE" ]; then
-    echo "----"
-    echo "Found 0 product(s) containing: \"$INGREDIENT\""
-    exit 0
-fi
+CSV="$DATA_DIR/products.csv"
+[ -s "$CSV" ] || { echo "ERROR: $CSV not found or empty." >&2; exit 1; }
 
-# Stream the gzipped file through awk
-zcat "$FILE" | awk -F'\t' -v IGN="$INGREDIENT" '
-BEGIN { count=0 }
-NR==1 { next } # skip header
-{
-  code = $1
-  name = $2
-  ingredients = $0
-  if (tolower(ingredients) ~ tolower(IGN)) {
-    print name "\t" code
-    count++
-  }
-}
-END {
-  print "----"
-  print "Found " count " product(s) containing: \"" IGN "\""
-}'
-exit 0
+# Check csvkit tools
+for cmd in csvcut csvgrep csvformat; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found. Please install csvkit." >&2; exit 1; }
+done
+
+# Pipeline:
+tmp_matches="$(mktemp)"
+csvcut -t -c ingredients_text,product_name,code "$CSV" \
+  | csvgrep -c ingredients_text -r "(?i)${INGREDIENT}" \
+  | csvcut -c product_name,code \
+  | csvformat -T \
+  | tail -n +2 \
+  | tee "$tmp_matches"
+
+count="$(wc -l < "$tmp_matches" | tr -d ' ')"
+echo ""
+echo "Found ${count} product(s) containing: \"${INGREDIENT}\""
+
+# cleanup
+rm -f "$tmp_matches"
